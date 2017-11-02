@@ -1,0 +1,29 @@
+
+syntax = "proto3";
+package network;
+
+message NID {
+    uint32 netId = 1;
+    string uuid = 2;
+    uint32 serviceId = 3;
+    bool isSwitch = 4;
+}
+
+message Packet {
+    NID source = 1;
+    NID dest = 2;
+    NID origSource = 3;
+    uint32 packetId = 4;
+    uint32 part = 5;
+    bool multiPart = 6;
+    uint32 priority = 7;
+    bytes data = 8;
+}
+
+message Frame {
+    NID source = 1;
+    NID dest = 2;
+    uint32 frameId = 3;
+    uint32 frameType = 4;
+    bytes data = 5;
+}
