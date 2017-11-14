@@ -1,5 +1,5 @@
 package network
 
 type FrameHandler interface {
-	HandleFrame(nNode NetNode, frame Frame)
+	HandleFrame(nNode *NetNode, frame Frame)
 }

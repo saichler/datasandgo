@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/nu7hatch/gouuid"
 	"../securityutil"
+	"../dbint"
 )
 
 const (
@@ -16,10 +17,11 @@ const (
 )
 
 type NetNode struct {
-	nid NID
+	Nid NID
 	switchNid NID
 	links map[string]net.Conn
 	FrameHandler FrameHandler
+	dbdata *dbint.DBData
 }
 
 func (nNode *NetNode) StartNetworkNode(service bool){
@@ -51,9 +53,9 @@ func (nNode *NetNode) StartNetworkNode(service bool){
 			log.Fatal("Unable to generate new UUID")
 			return
 		}
-		nNode.nid.Uuid = u.String()
+		nNode.Nid.Uuid = u.String()
 		log.Println("Bounded to port "+portString)
-		nNode.nid.IsSwitch = isSwitch
+		nNode.Nid.IsSwitch = isSwitch
 		if !isSwitch {
 			nNode.uplinkToSwitch()
 		}
@@ -152,11 +154,25 @@ func readData(c net.Conn, size int) ([]byte, error) {
 }
 
 func (nNode *NetNode)handlePacket(data []byte){
+	log.Println("Handle Packet")
 	packet := Packet{}
 	p := &packet
 	err := proto.Unmarshal(data, p)
 	if err != nil{
 		log.Println("Failed to decode packet")
+	}
+
+	if p!=nil && p.Dest!=nil && p.Source!=nil {
+		if nNode.dbdata == nil {
+			nNode.dbdata = &dbint.DBData{}
+			nNode.dbdata.Connect()
+		}
+
+		sql := "insert into packets (source,dest) values ('" + packet.Source.Uuid + "','" + packet.Dest.Uuid + "')"
+		_, e := nNode.dbdata.DB.Exec(sql)
+		if e != nil {
+			log.Println("Failed to store packet in db", e)
+		}
 	}
 	//@TODO add code here to collect the packets to a set
 	//@TODO so when all packet have arrived for a frame
@@ -177,12 +193,13 @@ func (nNode *NetNode)handlePacket(data []byte){
 		log.Println("Failed to decode frame")
 	}
 
-	nNode.FrameHandler.HandleFrame(*nNode, frame)
+	nNode.FrameHandler.HandleFrame(nNode, frame)
 }
 
 func (nNode *NetNode)handshake(c net.Conn){
+	log.Println("Handshake")
 	packet := Packet{}
-	packet.Source = &nNode.nid
+	packet.Source = &nNode.Nid
 	data, err := proto.Marshal(&packet)
 	if err!=nil {
 		log.Fatalln("Failed to encode packet", err)
@@ -201,7 +218,7 @@ func (nNode *NetNode)handshake(c net.Conn){
 	p := &packet
 	err = proto.Unmarshal(data, p)
 	nNode.links[packet.Source.Uuid] = c
-	log.Println("My UUID:"+nNode.nid.Uuid)
+	log.Println("My UUID:"+nNode.Nid.Uuid)
 	if packet.Source.IsSwitch {
 		log.Println("Switch UUID:"+packet.Source.Uuid)
 		nNode.switchNid = *packet.Source
@@ -215,8 +232,6 @@ func (nNode *NetNode)uplinkToSwitch() {
 	if e != nil {
 		log.Fatal("Failed to open connection to switch: ", e)
 	}
-
-	nNode.handshake(c)
 
 	go nNode.newConnection(c)
 }

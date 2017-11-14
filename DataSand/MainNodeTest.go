@@ -3,6 +3,7 @@ package main
 import (
 	"./network"
 	"time"
+	"log"
 )
 
 func main() {
@@ -11,10 +12,12 @@ func main() {
 	node.FrameHandler = sfh
 	node.StartNetworkNode(false)
 
-
-	sfh.SendString("Hello World", node, nil)
-	sfh.SendString("Hello World Again", node, nil)
-	time.Sleep(time.Second*10)
-	sfh.SendString("Hello World Again and Again", node, nil)
-	time.Sleep(time.Second*2)
+	time.Sleep(time.Second*5)
+	log.Println("Sending first packet")
+	sfh.SendString("Hello World", &node, nil)
+	time.Sleep(time.Second*5)
+	sfh.SendString("Hello World Again", &node, nil)
+	time.Sleep(time.Second*5)
+	sfh.SendString("Hello World Again and Again", &node, nil)
+	time.Sleep(time.Second*5)
 }
