@@ -6,8 +6,8 @@ import (
 	"net"
 	"log"
 	"encoding/binary"
-	"fmt"
 	"strconv"
+	"strings"
 )
 
 type NID struct {
@@ -34,7 +34,9 @@ func (nid *NID) getServiceId() uint16 {
 }
 
 func (nid *NID) String() string {
-	return string(nid.uuidLessSignificant)
+	var ip int32
+	ip = int32(nid.uuidLessSignificant << 32)
+	return nid.uuidLessSignificant)
 }
 
 func (nid *NID) encode() []byte {
@@ -43,7 +45,6 @@ func (nid *NID) encode() []byte {
 	ba.AppendInt64(nid.uuidLessSignificant)
 	ba.AppendUInt16(nid.networkId)
 	ba.AppendUInt16(nid.serviceId)
-	fmt.Println("size="+strconv.Itoa(len(ba.data)))
 	return ba.data
 }
 
@@ -51,32 +52,36 @@ func NewNID(port int) *NID{
 	newNID := NID{}
 	rand.Seed(time.Now().Unix())
 	newNID.uuidMostSignificant = rand.Int63n(math.MaxInt64)
-	newNID.uuidLessSignificant = int64(getIpAddress()+uint32(port))
+	var ip int32
+	ip = getIpAddress()
+	newNID.uuidLessSignificant = int64(getIpAddress() << 32 + uint32(port))
 	return &newNID
 }
 
-func getIpAddress() uint32 {
+func getIpAddress() int32 {
 	ifaces, err := net.Interfaces()
 	if err!=nil {
 		log.Fatal("Unable to access interfaces\n", err)
 	}
 	for _, _interface := range ifaces {
-		intAddresses, err := _interface.Addrs()
-		if err!=nil {
-			log.Fatal("Unable to access interface address\n", err)
-		}
+		intName := strings.ToLower(_interface.Name)
+		if !strings.Contains(intName,"localhost") &&
+			!strings.Contains(intName, "br") &&
+				!strings.Contains(intName, "vir") {
+			intAddresses, err := _interface.Addrs()
+			if err!=nil {
+				log.Fatal("Unable to access interface address\n", err)
+			}
 
-		ipaddr := net.IP{}
-
-		for _, address := range intAddresses {
-			switch value := address.(type) {
-			case *net.IPNet:
-				ipaddr = value.IP
-			case *net.IPAddr:
-				ipaddr = value.IP
+			for _, address := range intAddresses {
+				ipaddr := address.String()
+				var ipint int32
+				arr := strings.Split(ipaddr,".")
+				ipint = 0
+				ipint += int32()
 			}
 		}
-		return binary.BigEndian.Uint32(ipaddr)
+		return binary.BigEndian.in(ipaddr)
 	}
 	return 0
 }
