@@ -5,7 +5,6 @@ import (
 	"math"
 	"net"
 	"log"
-	"encoding/binary"
 	"strconv"
 	"strings"
 )
@@ -34,9 +33,9 @@ func (nid *NID) getServiceId() uint16 {
 }
 
 func (nid *NID) String() string {
-	var ip int32
-	ip = int32(nid.uuidLessSignificant << 32)
-	return nid.uuidLessSignificant)
+	ip := int32(nid.uuidLessSignificant >> 32)
+	port := int(nid.uuidLessSignificant - ((nid.uuidLessSignificant >> 32) << 32))
+	return GetIpAsString(ip)+":"+strconv.Itoa(port)
 }
 
 func (nid *NID) encode() []byte {
@@ -48,13 +47,23 @@ func (nid *NID) encode() []byte {
 	return ba.data
 }
 
+func decode(data []byte) *NID {
+	ba := NewByteArray(data)
+	nid := NewNID(0)
+	nid.uuidMostSignificant = ba.GetInt64()
+	nid.uuidLessSignificant = ba.GetInt64()
+	nid.networkId = ba.GetUInt16()
+	nid.serviceId = ba.GetUInt16()
+	return nid
+}
+
 func NewNID(port int) *NID{
 	newNID := NID{}
 	rand.Seed(time.Now().Unix())
 	newNID.uuidMostSignificant = rand.Int63n(math.MaxInt64)
 	var ip int32
 	ip = getIpAddress()
-	newNID.uuidLessSignificant = int64(getIpAddress() << 32 + uint32(port))
+	newNID.uuidLessSignificant = int64(ip) << 32 + int64(port)
 	return &newNID
 }
 
@@ -75,13 +84,32 @@ func getIpAddress() int32 {
 
 			for _, address := range intAddresses {
 				ipaddr := address.String()
-				var ipint int32
-				arr := strings.Split(ipaddr,".")
-				ipint = 0
-				ipint += int32()
+				return GetIpAsInt32(ipaddr)
 			}
 		}
-		return binary.BigEndian.in(ipaddr)
 	}
 	return 0
+}
+
+func GetIpAsString( ip int32) string {
+	a := strconv.FormatInt(int64((ip>>24)&0xff), 10)
+	b := strconv.FormatInt(int64((ip>>16)&0xff), 10)
+	c := strconv.FormatInt(int64((ip>>8)&0xff), 10)
+	d := strconv.FormatInt(int64(ip & 0xff), 10)
+	return a + "." + b + "." + c + "." + d
+}
+
+func GetIpAsInt32(ipaddr string) int32 {
+	var ipint int32
+	arr := strings.Split(ipaddr,".")
+	ipint = 0
+	a,_ := strconv.Atoi(arr[0])
+	b,_ := strconv.Atoi(arr[1])
+	c,_ := strconv.Atoi(arr[2])
+	d,_ := strconv.Atoi(strings.Split(arr[3],"/")[0])
+	ipint += int32(a) << 24
+	ipint += int32(b) << 16
+	ipint += int32(c) << 8
+	ipint += int32(d)
+	return ipint
 }
