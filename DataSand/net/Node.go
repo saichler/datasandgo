@@ -19,6 +19,8 @@ type NetNode struct {
 	isSwitch bool
 }
 
+var packetDecoder = Packet{}
+
 func (nNode *NetNode) StartNetworkNode(service bool){
 	nNode.links = make(map[*NID]net.Conn)
 	var port = SWITCH_PORT
@@ -145,8 +147,8 @@ func readData(c net.Conn, size int) ([]byte, error) {
 
 func (nNode *NetNode)handlePacket(data []byte){
 	log.Println("Handle Packet")
-	packet := Packet{}
-	packet.decode(data)
+	ba := NewByteArray(data)
+	packet := packetDecoder.Decode(ba)
 
 	//@TODO add code here to collect the packets to a set
 	//@TODO so when all packet have arrived for a frame
@@ -154,7 +156,7 @@ func (nNode *NetNode)handlePacket(data []byte){
 	//@TODO for now, one packet is one frame
 
 	frame := Frame{}
-	frame.decode(&packet)
+	frame.decode(packet)
 
 	nNode.frameHandler.HandleFrame(nNode, frame)
 }
@@ -163,7 +165,7 @@ func (nNode *NetNode)handshake(c net.Conn){
 	log.Println("Handshake")
 	packet := Packet{}
 	packet.source = nNode.nid
-	data := packet.encode()
+	data := packet.Encode()
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
 	c.Write(size)
@@ -173,9 +175,9 @@ func (nNode *NetNode)handshake(c net.Conn){
 	chanError := make(chan error)
 
 	data = nNode.singlePacketRead(c, chanSize, chanError)
+	ba := NewByteArray(data)
+	p := packetDecoder.Decode(ba)
 
-	p := Packet{}
-	p.decode(data)
 	nNode.links[p.source] = c
 }
 

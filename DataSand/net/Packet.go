@@ -1,29 +1,57 @@
 package net
 
+import "fmt"
+
 type Packet struct {
 	source *NID
 	dest *NID
 	origSource *NID
-	packetId uint32
-	part uint32
+	frameID uint32
+	pnum uint32
 	multipart bool
-	priority uint8
+	priority uint16
 	data []byte
 }
 
-func (p *Packet) encode() []byte {
+var nidDecoder = NID{}
+
+func (p *Packet) Encode() []byte {
 	ba := ByteArray{}
-	ba.AppendByteArray(p.source.encode())
-	ba.AppendByteArray(p.dest.encode())
-	ba.AppendByteArray(p.origSource.encode())
-	ba.AppendUInt32(p.packetId)
-	ba.AppendUInt32(p.part)
-	
-	result := make([]byte,12+12+12+4+4+2+2+len(p.data))
-	nidSourceData := p.source.encode()
-	copy(result[0:12],nidSourceData[:])
-	return result
+	ba.Add(p.source.Encode())
+	if p.dest == nil {
+		p.dest = NewNID(0)
+	}
+	ba.Add(p.dest.Encode())
+	if p.origSource == nil {
+		p.origSource = NewNID(0)
+	}
+	ba.Add(p.origSource.Encode())
+	ba.AddUInt32(p.frameID)
+	ba.AddUInt32(p.pnum)
+	ba.AddBool(p.multipart)
+	ba.AddUInt16(p.priority)
+	ba.AddByteArray(p.data)
+	return ba.data
 }
 
-func (p *Packet) decode(data []byte) {
+func (p *Packet)Decode(ba *ByteArray) *Packet{
+	packet := Packet{}
+	packet.source = nidDecoder.Decode(ba)
+	fmt.Println(packet.source.String())
+	packet.dest = nidDecoder.Decode(ba)
+	packet.origSource = nidDecoder.Decode(ba)
+	packet.frameID = ba.GetUInt32()
+	packet.pnum = ba.GetUInt32()
+	packet.multipart = ba.GetBool()
+	packet.priority = ba.GetUInt16()
+	packet.data = ba.GetByteArray()
+	return &packet
+}
+
+func (p *Packet) String() string {
+	return p.source.String()
+}
+
+func (p *Packet) SetSource(nid *NID){
+	p.source = nid
 }

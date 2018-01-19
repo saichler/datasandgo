@@ -38,17 +38,16 @@ func (nid *NID) String() string {
 	return GetIpAsString(ip)+":"+strconv.Itoa(port)
 }
 
-func (nid *NID) encode() []byte {
+func (nid *NID) Encode() []byte {
 	ba := ByteArray{}
-	ba.AppendInt64(nid.uuidMostSignificant)
-	ba.AppendInt64(nid.uuidLessSignificant)
-	ba.AppendUInt16(nid.networkId)
-	ba.AppendUInt16(nid.serviceId)
+	ba.AddInt64(nid.uuidMostSignificant)
+	ba.AddInt64(nid.uuidLessSignificant)
+	ba.AddUInt16(nid.networkId)
+	ba.AddUInt16(nid.serviceId)
 	return ba.data
 }
 
-func decode(data []byte) *NID {
-	ba := NewByteArray(data)
+func (n *NID)Decode(ba *ByteArray) *NID{
 	nid := NewNID(0)
 	nid.uuidMostSignificant = ba.GetInt64()
 	nid.uuidLessSignificant = ba.GetInt64()

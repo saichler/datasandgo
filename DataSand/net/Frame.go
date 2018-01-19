@@ -40,6 +40,6 @@ func (frame *Frame) encode() []byte {
 		packet.data = data
 	}
 
-	return packet.encode()
+	return packet.Encode()
 }
 
