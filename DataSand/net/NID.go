@@ -73,7 +73,7 @@ func getIpAddress() int32 {
 	}
 	for _, _interface := range ifaces {
 		intName := strings.ToLower(_interface.Name)
-		if !strings.Contains(intName,"localhost") &&
+		if !strings.Contains(intName,"lo") &&
 			!strings.Contains(intName, "br") &&
 				!strings.Contains(intName, "vir") {
 			intAddresses, err := _interface.Addrs()
@@ -135,4 +135,10 @@ func (nid *NID) equal (other *NID) bool {
 			nid.uuidLessSignificant == other.uuidLessSignificant &&
 			nid.networkId == other.networkId &&
 			nid.serviceId == other.serviceId
+}
+
+func (nid *NID) sameMachine(other *NID) bool {
+	myip := int32(nid.uuidLessSignificant >> 32)
+	otherip := int32(other.uuidLessSignificant >> 32)
+	return myip == otherip
 }

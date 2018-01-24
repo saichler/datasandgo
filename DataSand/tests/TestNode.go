@@ -47,7 +47,7 @@ func main(){
 	nd1.StartNetworkNode(false, ndfh1)
 
 	time.Sleep(time.Second*2)
-/*
+
 	fmt.Println("nid:"+nd1.GetNID().String())
 	ndfh1.SendString("Hello World",&nd1,nd1.GetSwitchNID())
 	time.Sleep(time.Second*2)
@@ -68,7 +68,7 @@ func main(){
 	ndfh1.SendString(longString,&nd1,nd1.GetSwitchNID())
 
 	time.Sleep(time.Second*2)
-*/
+
 	nd2 := net.Node{}
 	ndfh2 := net.StringFrameHandler{}
 	nd2.StartNetworkNode(false, ndfh2)
@@ -79,12 +79,12 @@ func main(){
 
 	time.Sleep(time.Second*2)
 
-	longString := ""
+	longString = ""
 	for i:=0;i<net.MAX_PACKET_SIZE*300+7;i++ {
 		longString+="B"
 	}
 
 	ndfh2.SendString(longString,&nd2,nd1.GetNID())
 
-	time.Sleep(time.Second*60)
+	time.Sleep(time.Second*2)
 }
