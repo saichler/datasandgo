@@ -11,8 +11,9 @@ type Frame struct {
 
 type MultiPart struct {
 	frameID uint32
-	packets map[uint32]*Packet
+	packets []*Packet
 	totalExpectedPackets uint32
+	byteLength uint32
 }
 
 var pending map[uint32]*MultiPart = make(map[uint32]*MultiPart)
@@ -30,19 +31,27 @@ func (frame *Frame) Decode (packet *Packet){
 		multiPart = pending[packet.frameID]
 		if multiPart == nil {
 			multiPart = &MultiPart{}
-			multiPart.packets = make(map[uint32]*Packet)
+			multiPart.packets = make([]*Packet,0)
 			pending[packet.frameID] = multiPart
 		}
-		multiPart.packets[packet.pnum] = packet
+
+		multiPart.packets = append(multiPart.packets,packet)
+
 		if multiPart.totalExpectedPackets == 0 && packet.pnum == 0 {
 			ba := ByteArray{}
 			ba.data = packet.data
 			multiPart.totalExpectedPackets = ba.GetUInt32()
+			multiPart.byteLength = ba.GetUInt32()
 		}
+
 		if multiPart.totalExpectedPackets>0 && len(multiPart.packets) == int(multiPart.totalExpectedPackets) {
-			frameData := make([]byte,0)
-			for i:=1;i<int(multiPart.totalExpectedPackets);i++ {
-				frameData = append(frameData, multiPart.packets[uint32(i)].data...)
+			frameData := make([]byte,int(multiPart.byteLength))
+			for i:=0;i<int(multiPart.totalExpectedPackets);i++ {
+				if multiPart.packets[i].pnum !=0 {
+					start := int((multiPart.packets[i].pnum-1)*MAX_PACKET_SIZE)
+					end := start+len(multiPart.packets[i].data)
+					copy(frameData[start:end],multiPart.packets[i].data[:])
+				}
 			}
 			/* decrypt here
 			key := securityutil.SecurityKey{}
@@ -89,6 +98,7 @@ if err == nil {
 
 		ba := ByteArray{}
 		ba.AddUInt32(uint32(totalParts))
+		ba.AddUInt32(uint32(len(frameData)))
 
 		packet := Packet{}
 		packet.source = frame.source
