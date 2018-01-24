@@ -57,5 +57,14 @@ func main(){
 
 	ndfh.SendString(longString,&nd,nd.GetSwitchNID())
 
+	time.Sleep(time.Second*2)
+
+	longString = ""
+	for i:=0;i<net.MAX_PACKET_SIZE*300+7;i++ {
+		longString+="A"
+	}
+
+	ndfh.SendString(longString,&nd,nd.GetSwitchNID())
+
 	time.Sleep(time.Second*60)
 }
