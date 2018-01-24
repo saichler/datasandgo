@@ -27,6 +27,20 @@ func (ba *ByteArray) GetByteArray() []byte {
 	return result
 }
 
+func (ba *ByteArray) AddString(str string){
+	data := []byte(str)
+	ba.AddUInt32(uint32(len(data)))
+	ba.data = append(ba.data,data...)
+	ba.loc+=len(data)+4
+}
+
+func (ba *ByteArray) GetString() string {
+	size := int(ba.GetUInt32())
+	result := ba.data[ba.loc:ba.loc+size]
+	ba.loc+=size
+	return string(result)
+}
+
 func (ba *ByteArray) AddInt64(i64 int64) {
 	long := make([]byte, 8)
 	binary.LittleEndian.PutUint64(long,uint64(i64))

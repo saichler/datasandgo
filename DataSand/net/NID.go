@@ -35,7 +35,7 @@ func (nid *NID) getServiceId() uint16 {
 func (nid *NID) String() string {
 	ip := int32(nid.uuidLessSignificant >> 32)
 	port := int(nid.uuidLessSignificant - ((nid.uuidLessSignificant >> 32) << 32))
-	return GetIpAsString(ip)+":"+strconv.Itoa(port)
+	return strconv.Itoa(int(nid.uuidMostSignificant))+":"+GetIpAsString(ip)+":"+strconv.Itoa(port)
 }
 
 func (nid *NID) Encode() []byte {
@@ -111,4 +111,21 @@ func GetIpAsInt32(ipaddr string) int32 {
 	ipint += int32(c) << 8
 	ipint += int32(d)
 	return ipint
+}
+
+func FromString(str string) *NID {
+	nid := NID{}
+	index := strings.Index(str,":")
+	mostString :=  str[0:index]
+	lessString := str[index+1:len(str)]
+	index1 := strings.Index(lessString,":")
+
+	mostUUID,_ := strconv.Atoi(mostString)
+	nid.uuidMostSignificant = int64(mostUUID)
+
+	ip := GetIpAsInt32(lessString[0:index1])
+	port,_ := strconv.Atoi(lessString[index1+1:len(lessString)])
+
+	nid.uuidLessSignificant = int64(ip) << 32 + int64(port)
+	return &nid
 }

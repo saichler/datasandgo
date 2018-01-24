@@ -5,6 +5,7 @@ import (
 	"log"
 	"encoding/binary"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -14,15 +15,16 @@ const (
 
 type NetNode struct {
 	nid *NID
-	links map[*NID]net.Conn
+	links map[string]net.Conn
 	frameHandler FrameHandler
 	isSwitch bool
 }
 
 var packetDecoder = Packet{}
 
-func (nNode *NetNode) StartNetworkNode(service bool){
-	nNode.links = make(map[*NID]net.Conn)
+func (nNode *NetNode) StartNetworkNode(service bool, handler FrameHandler){
+	nNode.links = make(map[string]net.Conn)
+	nNode.frameHandler = handler
 	var port = SWITCH_PORT
 	var portString = strconv.Itoa(port)
 	isSwitch := true
@@ -45,8 +47,11 @@ func (nNode *NetNode) StartNetworkNode(service bool){
 		log.Fatal("Unable to bind to any of the ports.: ", error)
 		return
 	} else {
+		if port != SWITCH_PORT {
+			port--
+		}
 		nNode.nid = NewNID(port)
-		log.Println("Bounded to port "+portString)
+		log.Println("Bounded to port "+nNode.nid.String())
 		nNode.isSwitch = isSwitch
 		if !isSwitch {
 			nNode.uplinkToSwitch()
@@ -113,7 +118,7 @@ func (nNode *NetNode)singlePacketRead(c net.Conn, chanSize chan []byte, chanErro
 }
 
 func (nNode *NetNode)unregisterLink(c net.Conn){
-	keyToRemove := &NID{}
+	keyToRemove := ""
 	for key, value := range nNode.links {
 		if(value == c){
 			keyToRemove = key
@@ -146,19 +151,13 @@ func readData(c net.Conn, size int) ([]byte, error) {
 }
 
 func (nNode *NetNode)handlePacket(data []byte){
-	log.Println("Handle Packet")
 	ba := NewByteArray(data)
 	packet := packetDecoder.Decode(ba)
-
-	//@TODO add code here to collect the packets to a set
-	//@TODO so when all packet have arrived for a frame
-	//@TODO combine the packets data and deserialize a frame
-	//@TODO for now, one packet is one frame
-
 	frame := Frame{}
-	frame.decode(packet)
-
-	nNode.frameHandler.HandleFrame(nNode, frame)
+	frame.Decode(packet)
+	if frame.complete {
+		nNode.frameHandler.HandleFrame(nNode, &frame)
+	}
 }
 
 func (nNode *NetNode)handshake(c net.Conn){
@@ -178,7 +177,9 @@ func (nNode *NetNode)handshake(c net.Conn){
 	ba := NewByteArray(data)
 	p := packetDecoder.Decode(ba)
 
-	nNode.links[p.source] = c
+	log.Println("handshaked with nid:"+p.source.String())
+
+	nNode.links[p.source.String()] = c
 }
 
 func (nNode *NetNode)uplinkToSwitch() {
@@ -191,14 +192,38 @@ func (nNode *NetNode)uplinkToSwitch() {
 	go nNode.newConnection(c)
 }
 
-func (nNode *NetNode)send(data[] byte, nid *NID){
+func (nNode *NetNode)send(packet *Packet){
+	data := packet.Encode()
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
-	c := nNode.links[nid]
+	c := nNode.links[packet.dest.String()]
+	log.Println("Sending from "+nNode.nid.String() +" to "+packet.dest.String())
+	if c==nil{
+		for key,_ := range nNode.links {
+			log.Println("NID1:"+key+"\nNID2:"+packet.dest.String())
+		}
+		log.Fatal("Invalid Connection to :"+packet.dest.String())
+	}
 	c.Write(size)
 	c.Write(data)
 }
 
 func (nNode *NetNode)Send(frame Frame) {
-	nNode.send(frame.encode(), frame.dest)
+	packets := frame.Encode()
+	for i:=0;i<len(packets); i++ {
+		nNode.send(packets[i])
+	}
+}
+
+func (node *NetNode) GetSwitchNID() *NID {
+	for key, _ := range node.links {
+		if strings.Contains(key,"52000") {
+			return FromString(key)
+		}
+	}
+	return nil
+}
+
+func (node *NetNode) GetNID () string {
+	return node.nid.String()
 }

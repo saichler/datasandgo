@@ -38,11 +38,24 @@ func main(){
 	fmt.Println(packet2.String())
 
 	sw := net.NetNode{}
-	sw.StartNetworkNode(false)
+	swfh := net.StringFrameHandler{}
+	sw.StartNetworkNode(false, swfh)
 
 	nd := net.NetNode{}
-	nd.StartNetworkNode(false)
+	ndfh := net.StringFrameHandler{}
+	nd.StartNetworkNode(false, ndfh)
 
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second*2)
 
+	fmt.Println("nid:"+nd.GetNID())
+	ndfh.SendString("Hello World",&nd,nd.GetSwitchNID())
+	time.Sleep(time.Second*2)
+	longString := ""
+	for i:=0;i<net.MAX_PACKET_SIZE+100;i++ {
+		longString+="A"
+	}
+
+	ndfh.SendString(longString,&nd,nd.GetSwitchNID())
+
+	time.Sleep(time.Second*60)
 }

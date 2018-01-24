@@ -1,7 +1,5 @@
 package net
 
-import "fmt"
-
 type Packet struct {
 	source *NID
 	dest *NID
@@ -14,6 +12,10 @@ type Packet struct {
 }
 
 var nidDecoder = NID{}
+
+const (
+	MAX_PACKET_SIZE = 512
+)
 
 func (p *Packet) Encode() []byte {
 	ba := ByteArray{}
@@ -31,13 +33,13 @@ func (p *Packet) Encode() []byte {
 	ba.AddBool(p.multipart)
 	ba.AddUInt16(p.priority)
 	ba.AddByteArray(p.data)
+
 	return ba.data
 }
 
 func (p *Packet)Decode(ba *ByteArray) *Packet{
 	packet := Packet{}
 	packet.source = nidDecoder.Decode(ba)
-	fmt.Println(packet.source.String())
 	packet.dest = nidDecoder.Decode(ba)
 	packet.origSource = nidDecoder.Decode(ba)
 	packet.frameID = ba.GetUInt32()
