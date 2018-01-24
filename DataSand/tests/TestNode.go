@@ -42,21 +42,21 @@ func main(){
 	swfh := net.StringFrameHandler{}
 	sw.StartNetworkNode(false, swfh)
 
-	nd := net.Node{}
-	ndfh := net.StringFrameHandler{}
-	nd.StartNetworkNode(false, ndfh)
+	nd1 := net.Node{}
+	ndfh1 := net.StringFrameHandler{}
+	nd1.StartNetworkNode(false, ndfh1)
 
 	time.Sleep(time.Second*2)
-
-	fmt.Println("nid:"+nd.GetNID())
-	ndfh.SendString("Hello World",&nd,nd.GetSwitchNID())
+/*
+	fmt.Println("nid:"+nd1.GetNID().String())
+	ndfh1.SendString("Hello World",&nd1,nd1.GetSwitchNID())
 	time.Sleep(time.Second*2)
 	longString := ""
 	for i:=0;i<net.MAX_PACKET_SIZE+100;i++ {
 		longString+="A"
 	}
 
-	ndfh.SendString(longString,&nd,nd.GetSwitchNID())
+	ndfh1.SendString(longString,&nd1,nd1.GetSwitchNID())
 
 	time.Sleep(time.Second*2)
 
@@ -65,7 +65,26 @@ func main(){
 		longString+="A"
 	}
 
-	ndfh.SendString(longString,&nd,nd.GetSwitchNID())
+	ndfh1.SendString(longString,&nd1,nd1.GetSwitchNID())
+
+	time.Sleep(time.Second*2)
+*/
+	nd2 := net.Node{}
+	ndfh2 := net.StringFrameHandler{}
+	nd2.StartNetworkNode(false, ndfh2)
+
+	time.Sleep(time.Second*2)
+
+	ndfh2.SendString("Hello Adjacent",&nd2,nd1.GetNID())
+
+	time.Sleep(time.Second*2)
+
+	longString := ""
+	for i:=0;i<net.MAX_PACKET_SIZE*300+7;i++ {
+		longString+="B"
+	}
+
+	ndfh2.SendString(longString,&nd2,nd1.GetNID())
 
 	time.Sleep(time.Second*60)
 }

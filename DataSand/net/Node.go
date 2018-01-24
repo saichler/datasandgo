@@ -153,11 +153,15 @@ func readData(c net.Conn, size int) ([]byte, error) {
 func (node *Node)handlePacket(data []byte){
 	ba := NewByteArray(data)
 	packet := packetDecoder.HeaderDecode(ba)
-	packet.DataDecode(ba)
-	frame := Frame{}
-	frame.Decode(packet)
-	if frame.complete {
-		node.frameHandler.HandleFrame(node, &frame)
+	if packet.dest.equal(node.nid) {
+		packet.DataDecode(ba)
+		frame := Frame{}
+		frame.Decode(packet)
+		if frame.complete {
+			node.frameHandler.HandleFrame(node, &frame)
+		}
+	} else {
+		node.sendBytes(packet, data)
 	}
 }
 
@@ -193,11 +197,16 @@ func (node *Node)uplinkToSwitch() {
 	go node.newConnection(c)
 }
 
-func (node *Node)send(packet *Packet){
-	data := packet.Encode()
+func (node *Node)sendBytes(packet *Packet, data []byte){
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
-	c := node.links[*packet.dest]
+	var c net.Conn
+	if !node.isSwitch {
+		swNID := node.GetSwitchNID()
+		c = node.links[*swNID]
+	} else {
+		c = node.links[*packet.dest]
+	}
 	log.Println("Sending from "+node.nid.String() +" to "+packet.dest.String())
 	if c==nil{
 		for key,_ := range node.links {
@@ -207,6 +216,11 @@ func (node *Node)send(packet *Packet){
 	}
 	c.Write(size)
 	c.Write(data)
+}
+
+func (node *Node)send(packet *Packet){
+	data := packet.Encode()
+	node.sendBytes(packet, data)
 }
 
 func (node *Node)Send(frame *Frame) {
@@ -225,6 +239,6 @@ func (node *Node) GetSwitchNID() *NID {
 	return nil
 }
 
-func (node *Node) GetNID () string {
-	return node.nid.String()
+func (node *Node) GetNID () *NID {
+	return node.nid
 }

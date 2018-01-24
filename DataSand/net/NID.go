@@ -129,3 +129,10 @@ func FromString(str string) *NID {
 	nid.uuidLessSignificant = int64(ip) << 32 + int64(port)
 	return &nid
 }
+
+func (nid *NID) equal (other *NID) bool {
+	return  nid.uuidMostSignificant == other.uuidMostSignificant &&
+			nid.uuidLessSignificant == other.uuidLessSignificant &&
+			nid.networkId == other.networkId &&
+			nid.serviceId == other.serviceId
+}
