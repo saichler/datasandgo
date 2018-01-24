@@ -1,5 +1,7 @@
 package net
 
+import "sync"
+
 type Frame struct {
 	frameID uint32
 	source *NID
@@ -16,10 +18,21 @@ type MultiPart struct {
 	byteLength uint32
 }
 
-var pending map[uint32]*MultiPart = make(map[uint32]*MultiPart)
+var pending map[NID]map[uint32]*MultiPart = make(map[NID]map[uint32]*MultiPart)
+var nextFrameID uint32 = 1
+var snc sync.Mutex
 
 type FrameHandler interface {
 	HandleFrame(nNode *NetNode, frame *Frame)
+}
+
+func NewFrame() *Frame {
+	frame := Frame{}
+	snc.Lock()
+	frame.frameID = nextFrameID
+	nextFrameID++
+	snc.Unlock()
+	return &frame
 }
 
 func (frame *Frame) Decode (packet *Packet){
@@ -28,11 +41,16 @@ func (frame *Frame) Decode (packet *Packet){
 
 	if packet.multipart {
 		var multiPart *MultiPart
-		multiPart = pending[packet.frameID]
+		sourcePending := pending[*packet.source]
+		if sourcePending == nil {
+			sourcePending = make(map[uint32]*MultiPart)
+			pending[*packet.source] = sourcePending
+		}
+		multiPart = sourcePending[packet.frameID]
 		if multiPart == nil {
 			multiPart = &MultiPart{}
 			multiPart.packets = make([]*Packet,0)
-			pending[packet.frameID] = multiPart
+			sourcePending[packet.frameID] = multiPart
 		}
 
 		multiPart.packets = append(multiPart.packets,packet)
@@ -60,7 +78,7 @@ func (frame *Frame) Decode (packet *Packet){
 				frame.data = decData
 			}*/
 			frame.data = frameData
-			pending[packet.frameID] = nil
+			sourcePending[packet.frameID] = nil
 			frame.complete = true;
 		}
 	} else {

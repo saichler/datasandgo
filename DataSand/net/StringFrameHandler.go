@@ -35,7 +35,7 @@ func (sfh StringFrameHandler) HandleFrame(nNode *NetNode, frame *Frame){
 }
 
 func (sfh StringFrameHandler)SendString(str string, nNode *NetNode, dest *NID){
-	frame := Frame{}
+	frame := NewFrame()
 	if dest==nil {
 		frame.dest = nNode.GetSwitchNID()
 	} else {
@@ -52,7 +52,7 @@ func (sfh StringFrameHandler)SendString(str string, nNode *NetNode, dest *NID){
 }
 
 func (sfh StringFrameHandler)ReplyString(str string, nNode *NetNode, dest *NID){
-	frame := Frame{}
+	frame := NewFrame()
 	if dest==nil {
 		frame.dest = nNode.GetSwitchNID()
 	} else {

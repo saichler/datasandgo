@@ -15,7 +15,7 @@ const (
 
 type NetNode struct {
 	nid *NID
-	links map[string]net.Conn
+	links map[NID]net.Conn
 	frameHandler FrameHandler
 	isSwitch bool
 }
@@ -23,7 +23,7 @@ type NetNode struct {
 var packetDecoder = Packet{}
 
 func (nNode *NetNode) StartNetworkNode(service bool, handler FrameHandler){
-	nNode.links = make(map[string]net.Conn)
+	nNode.links = make(map[NID]net.Conn)
 	nNode.frameHandler = handler
 	var port = SWITCH_PORT
 	var portString = strconv.Itoa(port)
@@ -118,7 +118,7 @@ func (nNode *NetNode)singlePacketRead(c net.Conn, chanSize chan []byte, chanErro
 }
 
 func (nNode *NetNode)unregisterLink(c net.Conn){
-	keyToRemove := ""
+	var keyToRemove NID
 	for key, value := range nNode.links {
 		if(value == c){
 			keyToRemove = key
@@ -179,7 +179,7 @@ func (nNode *NetNode)handshake(c net.Conn){
 
 	log.Println("handshaked with nid:"+p.source.String())
 
-	nNode.links[p.source.String()] = c
+	nNode.links[*p.source] = c
 }
 
 func (nNode *NetNode)uplinkToSwitch() {
@@ -196,11 +196,11 @@ func (nNode *NetNode)send(packet *Packet){
 	data := packet.Encode()
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
-	c := nNode.links[packet.dest.String()]
+	c := nNode.links[*packet.dest]
 	log.Println("Sending from "+nNode.nid.String() +" to "+packet.dest.String())
 	if c==nil{
 		for key,_ := range nNode.links {
-			log.Println("NID1:"+key+"\nNID2:"+packet.dest.String())
+			log.Println("NID1:"+key.String()+"\nNID2:"+packet.dest.String())
 		}
 		log.Fatal("Invalid Connection to :"+packet.dest.String())
 	}
@@ -208,7 +208,7 @@ func (nNode *NetNode)send(packet *Packet){
 	c.Write(data)
 }
 
-func (nNode *NetNode)Send(frame Frame) {
+func (nNode *NetNode)Send(frame *Frame) {
 	packets := frame.Encode()
 	for i:=0;i<len(packets); i++ {
 		nNode.send(packets[i])
@@ -217,8 +217,8 @@ func (nNode *NetNode)Send(frame Frame) {
 
 func (node *NetNode) GetSwitchNID() *NID {
 	for key, _ := range node.links {
-		if strings.Contains(key,"52000") {
-			return FromString(key)
+		if strings.Contains(key.String(),"52000") {
+			return &key
 		}
 	}
 	return nil
