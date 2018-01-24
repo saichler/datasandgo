@@ -37,17 +37,20 @@ func (p *Packet) Encode() []byte {
 	return ba.data
 }
 
-func (p *Packet)Decode(ba *ByteArray) *Packet{
+func (p *Packet)HeaderDecode(ba *ByteArray) *Packet{
 	packet := Packet{}
 	packet.source = nidDecoder.Decode(ba)
 	packet.dest = nidDecoder.Decode(ba)
+	return &packet
+}
+
+func (packet *Packet)DataDecode(ba *ByteArray){
 	packet.origSource = nidDecoder.Decode(ba)
 	packet.frameID = ba.GetUInt32()
 	packet.pnum = ba.GetUInt32()
 	packet.multipart = ba.GetBool()
 	packet.priority = ba.GetUInt16()
 	packet.data = ba.GetByteArray()
-	return &packet
 }
 
 func (p *Packet) String() string {

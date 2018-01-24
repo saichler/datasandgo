@@ -34,14 +34,15 @@ func main(){
 	packet.SetSource(nid2)
 	data = packet.Encode()
 	ba = net.NewByteArray(data)
-	packet2 := packet.Decode(ba)
+	packet2 := packet.HeaderDecode(ba)
+	packet.DataDecode(ba)
 	fmt.Println(packet2.String())
 
-	sw := net.NetNode{}
+	sw := net.Node{}
 	swfh := net.StringFrameHandler{}
 	sw.StartNetworkNode(false, swfh)
 
-	nd := net.NetNode{}
+	nd := net.Node{}
 	ndfh := net.StringFrameHandler{}
 	nd.StartNetworkNode(false, ndfh)
 

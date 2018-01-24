@@ -13,7 +13,7 @@ const (
 	MAX_PORT = 54000
 )
 
-type NetNode struct {
+type Node struct {
 	nid *NID
 	links map[NID]net.Conn
 	frameHandler FrameHandler
@@ -22,9 +22,9 @@ type NetNode struct {
 
 var packetDecoder = Packet{}
 
-func (nNode *NetNode) StartNetworkNode(service bool, handler FrameHandler){
-	nNode.links = make(map[NID]net.Conn)
-	nNode.frameHandler = handler
+func (node *Node) StartNetworkNode(service bool, handler FrameHandler){
+	node.links = make(map[NID]net.Conn)
+	node.frameHandler = handler
 	var port = SWITCH_PORT
 	var portString = strconv.Itoa(port)
 	isSwitch := true
@@ -50,21 +50,21 @@ func (nNode *NetNode) StartNetworkNode(service bool, handler FrameHandler){
 		if port != SWITCH_PORT {
 			port--
 		}
-		nNode.nid = NewNID(port)
-		log.Println("Bounded to port "+nNode.nid.String())
-		nNode.isSwitch = isSwitch
+		node.nid = NewNID(port)
+		log.Println("Bounded to port "+node.nid.String())
+		node.isSwitch = isSwitch
 		if !isSwitch {
-			nNode.uplinkToSwitch()
+			node.uplinkToSwitch()
 		}
 	}
 	if service {
-		nNode.waitForlinks(socket)
+		node.waitForlinks(socket)
 	} else {
-		go nNode.waitForlinks(socket)
+		go node.waitForlinks(socket)
 	}
 }
 
-func (nNode *NetNode)waitForlinks(socket net.Listener){
+func (node *Node)waitForlinks(socket net.Listener){
 	//infinit loop to accept connections
 	for {
 		connection, error := socket.Accept()
@@ -73,30 +73,30 @@ func (nNode *NetNode)waitForlinks(socket net.Listener){
 			return
 		}
 		//start a new connection
-		go nNode.newConnection(connection)
+		go node.newConnection(connection)
 	}
 	log.Fatal("Server Socket was closed!")
 }
 
-func (nNode *NetNode)newConnection(c net.Conn){
+func (node *Node)newConnection(c net.Conn){
 	log.Println("Connected to: "+c.RemoteAddr().String())
 
-	nNode.handshake(c)
+	node.handshake(c)
 
 	chanSize := make(chan []byte)
 	chanError := make(chan error)
 
 	for {
-		data := nNode.singlePacketRead(c, chanSize, chanError)
+		data := node.singlePacketRead(c, chanSize, chanError)
 		if data != nil {
-			nNode.handlePacket(data)
+			node.handlePacket(data)
 		} else {
 			break;
 		}
 	}
 }
 
-func (nNode *NetNode)singlePacketRead(c net.Conn, chanSize chan []byte, chanError chan error)([]byte){
+func (node *Node)singlePacketRead(c net.Conn, chanSize chan []byte, chanError chan error)([]byte){
 	go readDataSize(c, chanSize, chanError)
 
 	select {
@@ -110,22 +110,22 @@ func (nNode *NetNode)singlePacketRead(c net.Conn, chanSize chan []byte, chanErro
 			break;
 		}
 	case err := <-chanError:
-		nNode.unregisterLink(c)
+		node.unregisterLink(c)
 		c.Close()
 		log.Println("Connection of "+c.RemoteAddr().String()+" was closed!", err)
 	}
 	return nil
 }
 
-func (nNode *NetNode)unregisterLink(c net.Conn){
+func (node *Node)unregisterLink(c net.Conn){
 	var keyToRemove NID
-	for key, value := range nNode.links {
+	for key, value := range node.links {
 		if(value == c){
 			keyToRemove = key
 			break;
 		}
 	}
-	nNode.links[keyToRemove]=nil
+	node.links[keyToRemove]=nil
 }
 
 func readDataSize(c net.Conn, chanSize chan []byte, chanError chan error){
@@ -150,20 +150,21 @@ func readData(c net.Conn, size int) ([]byte, error) {
 	return data, nil
 }
 
-func (nNode *NetNode)handlePacket(data []byte){
+func (node *Node)handlePacket(data []byte){
 	ba := NewByteArray(data)
-	packet := packetDecoder.Decode(ba)
+	packet := packetDecoder.HeaderDecode(ba)
+	packet.DataDecode(ba)
 	frame := Frame{}
 	frame.Decode(packet)
 	if frame.complete {
-		nNode.frameHandler.HandleFrame(nNode, &frame)
+		node.frameHandler.HandleFrame(node, &frame)
 	}
 }
 
-func (nNode *NetNode)handshake(c net.Conn){
+func (node *Node)handshake(c net.Conn){
 	log.Println("Handshake")
 	packet := Packet{}
-	packet.source = nNode.nid
+	packet.source = node.nid
 	data := packet.Encode()
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
@@ -173,33 +174,33 @@ func (nNode *NetNode)handshake(c net.Conn){
 	chanSize := make(chan []byte)
 	chanError := make(chan error)
 
-	data = nNode.singlePacketRead(c, chanSize, chanError)
+	data = node.singlePacketRead(c, chanSize, chanError)
 	ba := NewByteArray(data)
-	p := packetDecoder.Decode(ba)
+	p := packetDecoder.HeaderDecode(ba)
 
 	log.Println("handshaked with nid:"+p.source.String())
 
-	nNode.links[*p.source] = c
+	node.links[*p.source] = c
 }
 
-func (nNode *NetNode)uplinkToSwitch() {
+func (node *Node)uplinkToSwitch() {
 	switchPortString := strconv.Itoa(SWITCH_PORT)
 	c, e := net.Dial("tcp", "127.0.0.1:"+switchPortString)
 	if e != nil {
 		log.Fatal("Failed to open connection to switch: ", e)
 	}
 
-	go nNode.newConnection(c)
+	go node.newConnection(c)
 }
 
-func (nNode *NetNode)send(packet *Packet){
+func (node *Node)send(packet *Packet){
 	data := packet.Encode()
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
-	c := nNode.links[*packet.dest]
-	log.Println("Sending from "+nNode.nid.String() +" to "+packet.dest.String())
+	c := node.links[*packet.dest]
+	log.Println("Sending from "+node.nid.String() +" to "+packet.dest.String())
 	if c==nil{
-		for key,_ := range nNode.links {
+		for key,_ := range node.links {
 			log.Println("NID1:"+key.String()+"\nNID2:"+packet.dest.String())
 		}
 		log.Fatal("Invalid Connection to :"+packet.dest.String())
@@ -208,14 +209,14 @@ func (nNode *NetNode)send(packet *Packet){
 	c.Write(data)
 }
 
-func (nNode *NetNode)Send(frame *Frame) {
+func (node *Node)Send(frame *Frame) {
 	packets := frame.Encode()
 	for i:=0;i<len(packets); i++ {
-		nNode.send(packets[i])
+		node.send(packets[i])
 	}
 }
 
-func (node *NetNode) GetSwitchNID() *NID {
+func (node *Node) GetSwitchNID() *NID {
 	for key, _ := range node.links {
 		if strings.Contains(key.String(),"52000") {
 			return &key
@@ -224,6 +225,6 @@ func (node *NetNode) GetSwitchNID() *NID {
 	return nil
 }
 
-func (node *NetNode) GetNID () string {
+func (node *Node) GetNID () string {
 	return node.nid.String()
 }

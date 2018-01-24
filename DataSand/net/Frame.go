@@ -23,7 +23,7 @@ var nextFrameID uint32 = 1
 var snc sync.Mutex
 
 type FrameHandler interface {
-	HandleFrame(nNode *NetNode, frame *Frame)
+	HandleFrame(nNode *Node, frame *Frame)
 }
 
 func NewFrame() *Frame {
