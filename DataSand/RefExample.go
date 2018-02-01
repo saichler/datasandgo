@@ -1,13 +1,13 @@
 package main
 
 import ("reflect"
-        "./network"
+        "./net"
 	"fmt"
 	"strings"
 )
 
-func main(){
-	structInstance := &network.Packet{}
+func main2(){
+	structInstance := &net.Packet{}
 	sql := getCreateSqlStatementForStruct(structInstance,"dbname")
 	fmt.Println(sql)
 }

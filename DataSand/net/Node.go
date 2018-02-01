@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -62,6 +63,7 @@ func (node *Node) StartNetworkNode(service bool, handler FrameHandler) {
 		node.waitForlinks(socket)
 	} else {
 		go node.waitForlinks(socket)
+		time.Sleep(time.Second)
 	}
 }
 
@@ -202,6 +204,20 @@ func (node *Node) uplinkToSwitch() {
 	go node.newConnection(c)
 }
 
+func (node *Node) Uplink(host string) {
+	switchPortString := strconv.Itoa(SWITCH_PORT)
+	c, e := net.Dial("tcp", host+":"+switchPortString)
+	if e != nil {
+		log.Fatal("Failed to open connection to host: "+host, e)
+	}
+
+	go node.newConnection(c)
+
+	for node.GetNodeSwitch(host)==nil {
+		time.Sleep(time.Second)
+	}
+}
+
 func (node *Node) sendBytes(packet *Packet, data []byte) {
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
@@ -217,6 +233,8 @@ func (node *Node) sendBytes(packet *Packet, data []byte) {
 		for key, _ := range node.interfaces {
 			log.Println("NID1:" + key.String() + "\nNID2:" + packet.dest.String())
 		}
+		var nid *NID
+		nid.String()
 		log.Fatal("Invalid Connection to :" + packet.dest.String())
 	}
 	c.Write(size)
@@ -238,6 +256,16 @@ func (node *Node) Send(frame *Frame) {
 func (node *Node) GetSwitchNID() *NID {
 	for key, _ := range node.interfaces {
 		if strings.Contains(key.String(), "52000") {
+			return &key
+		}
+	}
+	return nil
+}
+
+func (node *Node) GetNodeSwitch(host string) *NID {
+	for key, _ := range node.interfaces {
+		log.Println("Key:="+key.String())
+		if strings.Contains(key.String(), host) {
 			return &key
 		}
 	}

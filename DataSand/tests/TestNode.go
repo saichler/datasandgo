@@ -87,4 +87,9 @@ func main(){
 	ndfh2.SendString(longString,&nd2,nd1.GetNID())
 
 	time.Sleep(time.Second*2)
+
+	sw.Uplink("10.157.157.0")
+	otherNID := sw.GetNodeSwitch("10.157.157.0")
+	swfh.SendString("Hello Network Adjacent",&sw,otherNID)
+	time.Sleep(time.Second*2)
 }
