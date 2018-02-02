@@ -142,3 +142,7 @@ func (nid *NID) sameMachine(other *NID) bool {
 	otherip := int32(other.uuidLessSignificant >> 32)
 	return myip == otherip
 }
+
+func (nid *NID) getHostID() int32 {
+	return int32(nid.uuidLessSignificant >> 32)
+}

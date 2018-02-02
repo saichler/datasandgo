@@ -17,6 +17,8 @@ const (
 type Node struct {
 	nid          *NID
 	interfaces   map[NID]net.Conn
+	peers map[int32]net.Conn
+	peersNid map[int32]*NID
 	tunnels      map[NID]*NID
 	frameHandler FrameHandler
 	isSwitch     bool
@@ -26,6 +28,8 @@ var packetDecoder = Packet{}
 
 func (node *Node) StartNetworkNode(service bool, handler FrameHandler) {
 	node.interfaces = make(map[NID]net.Conn)
+	node.peers = make(map[int32]net.Conn)
+	node.peersNid = make(map[int32]*NID)
 	node.frameHandler = handler
 	var port = SWITCH_PORT
 	var portString = strconv.Itoa(port)
@@ -121,14 +125,18 @@ func (node *Node) singlePacketRead(c net.Conn, chanSize chan []byte, chanError c
 }
 
 func (node *Node) unregisterLink(c net.Conn) {
-	var keyToRemove NID
 	for key, value := range node.interfaces {
 		if (value == c) {
-			keyToRemove = key
+			node.interfaces[key] = nil
 			break;
 		}
 	}
-	node.interfaces[keyToRemove] = nil
+	for key, value := range node.peers {
+		if (value == c) {
+			node.peers[key] = nil
+			break;
+		}
+	}
 }
 
 func readDataSize(c net.Conn, chanSize chan []byte, chanError chan error) {
@@ -191,7 +199,14 @@ func (node *Node) handshake(c net.Conn) {
 
 	log.Println("handshaked with nid:" + p.source.String())
 
-	node.interfaces[*p.source] = c
+	hostID := p.source.getHostID()
+
+	if node.nid.getHostID()==hostID {
+		node.interfaces[*p.source] = c
+	} else {
+		node.peers[hostID] = c
+		node.peersNid[hostID] = p.source
+	}
 }
 
 func (node *Node) uplinkToSwitch() {
@@ -213,7 +228,9 @@ func (node *Node) Uplink(host string) {
 
 	go node.newConnection(c)
 
-	for node.GetNodeSwitch(host)==nil {
+	hostID := GetIpAsInt32(host)
+
+	for node.peers[hostID]==nil {
 		time.Sleep(time.Second)
 	}
 }
@@ -222,11 +239,16 @@ func (node *Node) sendBytes(packet *Packet, data []byte) {
 	size := make([]byte, 4)
 	binary.LittleEndian.PutUint32(size, uint32(len(data)))
 	var c net.Conn
+	hostID := packet.dest.getHostID()
+	myHostID := node.nid.getHostID()
+
 	if !node.isSwitch {
 		swNID := node.GetSwitchNID()
 		c = node.interfaces[*swNID]
-	} else {
+	} else if hostID == myHostID {
 		c = node.interfaces[*packet.dest]
+	} else {
+		c = node.peers[packet.dest.getHostID()]
 	}
 	//log.Println("Sending from " + node.nid.String() + " to " + packet.dest.String())
 	if c == nil {
@@ -262,16 +284,11 @@ func (node *Node) GetSwitchNID() *NID {
 	return nil
 }
 
-func (node *Node) GetNodeSwitch(host string) *NID {
-	for key, _ := range node.interfaces {
-		log.Println("Key:="+key.String())
-		if strings.Contains(key.String(), host) {
-			return &key
-		}
-	}
-	return nil
-}
-
 func (node *Node) GetNID() *NID {
 	return node.nid
+}
+
+func (node *Node) GetNodeSwitch(host string) *NID {
+	hostID := GetIpAsInt32(host)
+	return node.peersNid[hostID]
 }

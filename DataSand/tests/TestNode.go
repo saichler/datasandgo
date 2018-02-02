@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"log"
 )
 
 func main(){
@@ -47,7 +48,7 @@ func main(){
 	nd1.StartNetworkNode(false, ndfh1)
 
 	time.Sleep(time.Second*2)
-
+/*
 	fmt.Println("nid:"+nd1.GetNID().String())
 	ndfh1.SendString("Hello World",&nd1,nd1.GetSwitchNID())
 	time.Sleep(time.Second*2)
@@ -87,9 +88,17 @@ func main(){
 	ndfh2.SendString(longString,&nd2,nd1.GetNID())
 
 	time.Sleep(time.Second*2)
-
-	sw.Uplink("10.157.157.0")
-	otherNID := sw.GetNodeSwitch("10.157.157.0")
+*/
+	sw.Uplink("10.157.157.6")
+	otherNID := sw.GetNodeSwitch("10.157.157.6")
+	if otherNID == nil {
+		log.Fatal("Failed!")
+	}
 	swfh.SendString("Hello Network Adjacent",&sw,otherNID)
 	time.Sleep(time.Second*2)
+
+	longString := "Hello Network Adjacent"//+longString
+	swfh.SendString(longString,&sw,otherNID)
+	time.Sleep(time.Second*2)
+
 }
